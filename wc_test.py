@@ -1,36 +1,54 @@
 import cv2
+import tkinter as tk
+from PIL import Image, ImageTk
 from fer import FER
 
-# FER detector initialization
-detector = FER(mtcnn=True)
+class FERApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("FER on Webcam")
 
-# OpenCV setup to capture video from webcam
-cap = cv2.VideoCapture(0)  # 0 for default webcam, change if needed
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+        self.video_source = 0  # Change this if needed for a different webcam
 
-    # Convert the image to grayscale for FER (optional depending on the FER library requirements)
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self.fer = FER(mtcnn=True)
 
-    # Analyze the frame
-    result = detector.detect_emotions(frame)
+        self.vid = cv2.VideoCapture(self.video_source)
+        self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
-    # Draw rectangles around the detected faces and label the emotions
-    for face in result:
-        (x, y, w, h) = face['box']
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        emotion = face['emotions']
-        cv2.putText(frame, max(emotion, key=emotion.get), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+        self.canvas = tk.Canvas(root, width=self.width, height=self.height)
+        self.canvas.pack()
 
-    # Display the frame with annotations
-    cv2.imshow('FER on Webcam', frame)
+        self.btn_quit = tk.Button(root, text="Quit", command=self.quit)
+        self.btn_quit.pack()
 
-    # Press 'q' to exit the loop
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        self.update()
 
-# Release the capture and close the OpenCV windows
-cap.release()
-cv2.destroyAllWindows()
+    def update(self):
+        ret, frame = self.vid.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = self.fer.detect_emotions(frame)
+
+            for face in result:
+                (x, y, w, h) = face['box']
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                emotion = face['emotions']
+                cv2.putText(frame, max(emotion, key=emotion.get), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+            self.photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+
+        self.root.after(15, self.update)
+
+    def quit(self):
+        self.vid.release()
+        self.root.destroy()
+
+def main():
+    root = tk.Tk()
+    app = FERApp(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
