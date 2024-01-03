@@ -7,6 +7,7 @@ class FERApp:
     def __init__(self, root):
         self.root = root
         self.root.title("FER Analysis")
+        self.root.geometry("300x200")  # Set a uniform size
 
         self.video_source = 0  # Change this if needed for a different webcam
 
@@ -30,6 +31,10 @@ class FERApp:
             'fear': 'img/fear.png',  # Replace with your image path
             # Add other emotions and their respective image paths
         }
+
+        # exit button
+        self.exit_button = tk.Button(root, text="Exit", command=self.exit_app)
+        self.exit_button.pack()
 
         self.update()
 
@@ -55,9 +60,19 @@ class FERApp:
 
         self.root.after(100, self.update)
 
+    def exit_app(self):
+        self.root.destroy()
+
 def main():
     root = tk.Tk()
     app = FERApp(root)
+
+    def exit_app():
+        root.destroy()
+
+    btn_exit = tk.Button(root, text="Exit", command=exit_app)
+    btn_exit.pack()
+
     root.mainloop()
 
 if __name__ == "__main__":
