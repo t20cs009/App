@@ -48,12 +48,9 @@ class FERApp:
             for face in result:
                 emotion = face['emotions']
                 
-                print(emotion)
                 emotion['happy'] *= 1.2
                 emotion['sad'] *= 0.5
                 emotion['angry'] *= 0.5
-                print('converted:')
-                print(emotion)
                 
                 self.emotion_history.append(emotion)
                 self.frames_since_last_update += 1
@@ -61,7 +58,7 @@ class FERApp:
             current_time = time.time()
             elapsed_time = current_time - self.last_update_time
 
-            if elapsed_time >= 2:  # 1秒ごとに処理
+            if elapsed_time >= 1:  # 1秒ごとに処理
                 # 平均感情の計算
                 average_emotion = {emotion: sum(data[emotion] for data in self.emotion_history) / len(self.emotion_history) for emotion in result[0]['emotions']}
                 
