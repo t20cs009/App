@@ -60,10 +60,13 @@ class FERApp:
 
             if elapsed_time >= 1:  # 1秒ごとに処理
                 # 平均感情の計算
-                average_emotion = {emotion: sum(data[emotion] for data in self.emotion_history) / len(self.emotion_history) for emotion in result[0]['emotions']}
-                
-                # 一番大きな平均値を持つ感情を取得
-                dominant_emotion = max(average_emotion, key=average_emotion.get)
+                if self.emotion_history:  # リストが空でない場合に処理を行う
+                    average_emotion = {emotion: sum(data[emotion] for data in self.emotion_history) / len(self.emotion_history) for emotion in result[0]['emotions']}
+                     # 一番大きな平均値を持つ感情を取得
+                    dominant_emotion = max(average_emotion, key=average_emotion.get)
+                else:
+                     # 一番大きな平均値を持つ感情を取得
+                    dominant_emotion = 'neutral'
                 
                 # Update the label with the dominant emotion
                 self.label_emotion.config(text=f"Dominant emotion: {dominant_emotion.capitalize()}")
