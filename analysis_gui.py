@@ -2,12 +2,13 @@ import cv2
 import tkinter as tk
 from PIL import Image, ImageTk
 from fer import FER
+import time
 
 class FERApp:
     def __init__(self, root):
         self.root = root
         self.root.title("FER Analysis")
-        self.root.geometry("300x200")  # Set a uniform size
+        self.root.geometry("400x300")  # Set a uniform size
 
         self.video_source = 0  # Change this if needed for a different webcam
 
@@ -20,6 +21,10 @@ class FERApp:
 
         self.image_label = tk.Label(root)
         self.image_label.pack()
+        
+        self.emotion_history = []
+        self.frames_since_last_update = 0  # 最後の更新からのフレーム数
+        self.last_update_time = time.time()
 
         # Dictionary to map emotions to image paths
         self.emotion_images = {
@@ -32,12 +37,8 @@ class FERApp:
             # Add other emotions and their respective image paths
         }
 
-        # exit button
-        self.exit_button = tk.Button(root, text="Exit", command=self.exit_app)
-        self.exit_button.pack()
-
-        self.update()
-
+        self.update()                
+                
     def update(self):
         ret, frame = self.vid.read()
         if ret:
@@ -46,7 +47,27 @@ class FERApp:
 
             for face in result:
                 emotion = face['emotions']
-                dominant_emotion = max(emotion, key=emotion.get)
+                
+                emotion['happy'] *= 1.2
+                emotion['sad'] *= 0.5
+                emotion['angry'] *= 0.5
+                
+                self.emotion_history.append(emotion)
+                self.frames_since_last_update += 1
+
+            current_time = time.time()
+            elapsed_time = current_time - self.last_update_time
+
+            if elapsed_time >= 1:  # 1秒ごとに処理
+                # 平均感情の計算
+                if self.emotion_history:  # リストが空でない場合に処理を行う
+                    average_emotion = {emotion: sum(data[emotion] for data in self.emotion_history) / len(self.emotion_history) for emotion in result[0]['emotions']}
+                     # 一番大きな平均値を持つ感情を取得
+                    dominant_emotion = max(average_emotion, key=average_emotion.get)
+                else:
+                     # 一番大きな平均値を持つ感情を取得
+                    dominant_emotion = 'neutral'
+                
                 # Update the label with the dominant emotion
                 self.label_emotion.config(text=f"Dominant emotion: {dominant_emotion.capitalize()}")
 
@@ -57,6 +78,11 @@ class FERApp:
                     img = ImageTk.PhotoImage(img)
                     self.image_label.config(image=img)
                     self.image_label.image = img  # Keep a reference to avoid garbage collection
+
+                # リストをクリアして次のデータ収集の準備
+                self.emotion_history.clear()
+                self.frames_since_last_update = 0
+                self.last_update_time = time.time()
 
         self.root.after(100, self.update)
 
