@@ -12,6 +12,17 @@ def copy_random_files(source_folder, destination_folder, num_files=100):
     # ディレクトリが存在しない場合は作成
     if not os.path.exists(destination_folder):
         os.makedirs(destination_folder)
+    else:
+        # ディレクトリが存在する場合は中身をすべて削除
+        for file_name in os.listdir(destination_folder):
+            file_path = os.path.join(destination_folder, file_name)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Error deleting {file_path}: {e}")
 
     # 選択されたファイルをコピー
     for file_name in selected_files:
