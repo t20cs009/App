@@ -65,7 +65,7 @@ class FERApp:
                      # 一番大きな平均値を持つ感情を取得
                     dominant_emotion = max(average_emotion, key=average_emotion.get)
                 else:
-                     # 一番大きな平均値を持つ感情を取得
+                     #Set default as neutral
                     dominant_emotion = 'neutral'
                 
                 # Update the label with the dominant emotion

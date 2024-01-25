@@ -7,7 +7,10 @@ import time
 class FERApp:
     def __init__(self, root, window_id):
         self.root = root
-        self.root.title(f"FER Analysis - Window {window_id}")
+        if window_id == 1:
+            self.root.title(f"FER Analysis - Window for you")
+        if window_id == 2:
+            self.root.title(f'FER Analysis - Window for companion')
         self.root.geometry("400x300")  # Set a uniform size
 
         self.video_source = 0  # Change this if needed for a different webcam
@@ -25,6 +28,8 @@ class FERApp:
         self.emotion_history = []
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
         self.last_update_time = time.time()
+        
+        self.window_id = window_id
 
         # Dictionary to map emotions to image paths
         self.emotion_images = {
@@ -51,6 +56,11 @@ class FERApp:
 
             for face in result:
                 emotion = face['emotions']
+                if self.window_id == 1:
+                    emotion['happy'] *= 1.2
+                    emotion['sad'] *= 0.5
+                    emotion['angry'] *= 0.5
+                    emotion['fear'] *= 0.5
 
                 self.emotion_history.append(emotion)
                 self.frames_since_last_update += 1
@@ -100,10 +110,10 @@ def main():
         new_window = tk.Toplevel(root)
         app = FERApp(new_window, window_id)
 
-    btn_window1 = tk.Button(root, text="Open Window 1", command=lambda: create_new_window(1))
+    btn_window1 = tk.Button(root, text="Open Window for you", command=lambda: create_new_window(1))
     btn_window1.pack(side="left")
 
-    btn_window2 = tk.Button(root, text="Open Window 2", command=lambda: create_new_window(2))
+    btn_window2 = tk.Button(root, text="Open Window for companion", command=lambda: create_new_window(2))
     btn_window2.pack(side="right")
     
     def exit_app():
