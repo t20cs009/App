@@ -30,8 +30,11 @@ class FERApp:
         self.last_update_time = time.time()
         
         self.threshold_angry = 0.3  # この値を適切な閾値に設定
+        self.threshold_sad = 0.2
+        self.threshold_fear = 0.2
         self.second_window = None
         self.second_window_label = None
+        self.is_second_window = False
         
         self.window_id = window_id
 
@@ -74,13 +77,15 @@ class FERApp:
                          # 一番大きな平均値を持つ感情を取得
                         dominant_emotion = max(average_emotion, key=average_emotion.get)
                         
+                        # angry converter
                         print(average_emotion['angry'])
-                        if average_emotion['angry'] > self.threshold_angry:
-                            print('hello')
+                        # 閾値を超えていて，ウィンドウがないなら生成
+                        if average_emotion.get('angry', 0) > self.threshold_angry or average_emotion.get('sad', 0) > self.threshold_sad or average_emotion.get('fear', 0) > self.threshold_fear:
+                            print('show')
                             self.show_second_window()
-                        elif  self.second_window is not None:
-                            self.second_window.destroy()
-                            self.second_window = None
+                        # 超えていないかつ存在するなら消す
+                        elif self.is_second_window:
+                            self.close_second_window()
                             
                     else:
                          #Set neutral as default
@@ -105,30 +110,30 @@ class FERApp:
         self.root.after(100, self.update)
         
     def show_second_window(self):
-        # 別のウィンドウが既に存在する場合は閉じる
-        if self.second_window is not None:
-            self.second_window.destroy()
+        if not self.is_second_window:
+             # 別のウィンドウを作成
+            self.second_window = tk.Toplevel(self.root)
+            self.second_window.title("Don't be nervous!")
 
-        # 別のウィンドウを作成
-        self.second_window = tk.Toplevel(self.root)
-        self.second_window.title("Angry Image")
+            # 別のウィンドウに画像を表示
+            img_path = 'img/kattu2.jpg'  # ここに別の画像のパスを設定
+            img = Image.open(img_path)
+            img = ImageTk.PhotoImage(img)
+            self.second_window_label = tk.Label(self.second_window, image=img)
+            self.second_window_label.image = img
+            self.second_window_label.pack()
 
-        # 別のウィンドウに画像を表示
-        img_path = 'img/kattu2.jpg'  # ここに別の画像のパスを設定
-        img = Image.open(img_path)
-        img = ImageTk.PhotoImage(img)
-        self.second_window_label = tk.Label(self.second_window, image=img)
-        self.second_window_label.image = img
-        self.second_window_label.pack()
+            # 別のウィンドウを閉じるためのボタン
+            close_button = tk.Button(self.second_window, text="Close", command=self.close_second_window)
+            close_button.pack()
 
-        # 別のウィンドウを閉じるためのボタン
-        close_button = tk.Button(self.second_window, text="Close", command=self.close_second_window)
-        close_button.pack()
+            # ウィンドウが表示されたことをフラグに設定
+            self.is_second_window = True
 
     def close_second_window(self):
-        if self.second_window is not None:
-            self.second_window.destroy()
-            self.second_window = None
+        self.second_window.destroy()
+        # ウィンドウが閉じられたことをフラグに設定
+        self.is_second_window = False
         
     def exit_app(self):
         self.root.destroy()
