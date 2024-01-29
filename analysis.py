@@ -3,6 +3,8 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from fer import FER
 import time
+import os
+import random
 
 class FERApp:
     def __init__(self, root, window_id):
@@ -29,7 +31,7 @@ class FERApp:
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
         self.last_update_time = time.time()
         
-        self.threshold_angry = 0.3  # この値を適切な閾値に設定
+        self.threshold_angry = 0.2  # この値を適切な閾値に設定
         self.threshold_sad = 0.2
         self.threshold_fear = 0.2
         self.second_window = None
@@ -114,9 +116,11 @@ class FERApp:
              # 別のウィンドウを作成
             self.second_window = tk.Toplevel(self.root)
             self.second_window.title("Don't be nervous!")
+            self.label = tk.Label(self.root, text=f'Do not be so nervous!')
+            self.label.pack(pady=20)
 
             # 別のウィンドウに画像を表示
-            img_path = 'img/kattu2.jpg'  # ここに別の画像のパスを設定
+            img_path = self.show_random_file()  # ここに別の画像のパスを設定
             img = Image.open(img_path)
             img = ImageTk.PhotoImage(img)
             self.second_window_label = tk.Label(self.second_window, image=img)
@@ -134,6 +138,13 @@ class FERApp:
         self.second_window.destroy()
         # ウィンドウが閉じられたことをフラグに設定
         self.is_second_window = False
+    
+    def show_random_file(self):
+        directory = 'img/posi'
+        file_list = os.listdir(directory)
+        selected_file = random.choice(file_list)
+        return os.path.join(directory, selected_file)
+        
         
     def exit_app(self):
         self.root.destroy()
