@@ -10,7 +10,7 @@ class FERApp:
     def __init__(self, root):
         self.root = root
         self.root.title(f'FER Analysis')
-        self.root.geometry("400x300")  # Set a uniform size
+        self.root.geometry("800x450")  # Set a uniform size
 
         self.video_source = 0  # Change this if needed for a different webcam
 
@@ -23,6 +23,9 @@ class FERApp:
 
         self.image_label = tk.Label(root)
         self.image_label.pack()
+        
+        self.alter_image_label = tk.Label(root)
+        self.alter_image_label.pack()
 
         self.emotion_history = []
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
@@ -75,7 +78,7 @@ class FERApp:
                         dominant_emotion = max(average_emotion, key=average_emotion.get)
                         
                         # angry converter
-                        print(average_emotion['angry'])
+                        print(average_emotion)
                         # 閾値を超えていて，ウィンドウがないなら生成
                         if average_emotion.get('angry', 0) > self.threshold_angry:
                             print('angry')
@@ -100,6 +103,7 @@ class FERApp:
                         img = Image.open(img_path)
                         img = ImageTk.PhotoImage(img)
                         self.image_label.config(image=img)
+                        self.image_label.place(x=50,y=100)
                         self.image_label.image = img  # Keep a reference to avoid garbage collection
 
                     # リストをクリアして次のデータ収集の準備
@@ -111,32 +115,34 @@ class FERApp:
         
     def show_second_window(self, win_id):
         if not self.is_second_window:
-             # 別のウィンドウを作成
-            self.second_window = tk.Toplevel(self.root)
-            self.second_window.title("Don't be nervous!")
-            self.label = tk.Label(self.root, text=f'Do not be so nervous!')
-            self.label.pack(pady=20)
-            
             win_id = win_id
+            alter_img_path = self.show_random_file(win_id)
+            original_img = Image.open(alter_img_path)
 
-            # 別のウィンドウに画像を表示
-            img_path = self.show_random_file(win_id)  # ここに別の画像のパスを設定
-            img = Image.open(img_path)
-            img = ImageTk.PhotoImage(img)
-            self.second_window_label = tk.Label(self.second_window, image=img)
-            self.second_window_label.image = img
-            self.second_window_label.pack()
+            # リサイズしたいサイズを指定
+            target_size = (400, 300)
+            resized_img = original_img.resize(target_size)
 
-            # 別のウィンドウを閉じるためのボタン
-            close_button = tk.Button(self.second_window, text="Close", command=self.close_second_window)
-            close_button.pack()
+            alter_img = ImageTk.PhotoImage(resized_img)
 
-            # ウィンドウが表示されたことをフラグに設定
-            self.is_second_window = True
+            # angryの閾値を超えているかどうかを確認
+            if win_id == 1:
+                self.alter_image_label = tk.Label(self.root)
+                self.alter_image_label.config(image=alter_img)
+                self.alter_image_label.place(x=300, y=80)
+                self.alter_image_label.image = alter_img
+                self.is_second_window = True
+            elif win_id == 2:
+                self.alter_image_label = tk.Label(self.root)
+                self.alter_image_label.config(image=alter_img)
+                self.alter_image_label.place(x=300, y=80)
+                self.alter_image_label.image = alter_img
+                self.is_second_window = True
 
     def close_second_window(self):
-        self.second_window.destroy()
-        # ウィンドウが閉じられたことをフラグに設定
+        if self.alter_image_label:
+            self.alter_image_label.destroy()
+        self.alter_image_label = None
         self.is_second_window = False
     
     def show_random_file(self, win_id):
