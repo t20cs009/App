@@ -89,7 +89,7 @@ class FERApp:
                         # 超えていないかつ存在するなら消す
                         elif self.is_second_window:
                             self.close_second_window()
-                            
+                            print("hello")
                     else:
                          #Set neutral as default
                         dominant_emotion = 'neutral'
