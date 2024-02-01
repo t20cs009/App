@@ -3,28 +3,37 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from fer import FER
 import time
+import os
+import random
 
 class FERApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FER Analysis")
+        self.root.title(f'FER Analysis')
         self.root.geometry("400x300")  # Set a uniform size
 
         self.video_source = 0  # Change this if needed for a different webcam
 
         self.fer = FER(mtcnn=True)
 
-        self.vid = cv2.VideoCapture(self.video_source)
+        self.vid = cv2.VideoCapture(self.video_source, cv2.CAP_DSHOW)
 
         self.label_emotion = tk.Label(root, text="", font=("Arial", 18))
         self.label_emotion.pack()
 
         self.image_label = tk.Label(root)
         self.image_label.pack()
-        
+
         self.emotion_history = []
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
         self.last_update_time = time.time()
+        
+        self.threshold_angry = 0.3  # この値を適切な閾値に設定
+        self.threshold_sad = 0.3
+        self.threshold_fear = 0.3
+        self.second_window = None
+        self.second_window_label = None
+        self.is_second_window = False
 
         # Dictionary to map emotions to image paths
         self.emotion_images = {
@@ -36,23 +45,22 @@ class FERApp:
             'fear': 'img/fear.png',  # Replace with your image path
             # Add other emotions and their respective image paths
         }
+        
+        # Exit Button
+        self.btn_exit = tk.Button(root, text="Exit", command=self.exit_app)
+        self.btn_exit.pack()
 
-        self.update()                
-                
+        self.update()
+
     def update(self):
         ret, frame = self.vid.read()
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = self.fer.detect_emotions(frame)
-
+            
             if result:
                 for face in result:
                     emotion = face['emotions']
-
-                    # emotion['happy'] *= 1.2
-                    # emotion['sad'] *= 0.5
-                    # emotion['angry'] *= 0.5
-
                     self.emotion_history.append(emotion)
                     self.frames_since_last_update += 1
 
@@ -65,6 +73,20 @@ class FERApp:
                         average_emotion = {emotion: sum(data[emotion] for data in self.emotion_history) / len(self.emotion_history) for emotion in result[0]['emotions']}
                          # 一番大きな平均値を持つ感情を取得
                         dominant_emotion = max(average_emotion, key=average_emotion.get)
+                        
+                        # angry converter
+                        print(average_emotion['angry'])
+                        # 閾値を超えていて，ウィンドウがないなら生成
+                        if average_emotion.get('angry', 0) > self.threshold_angry:
+                            print('angry')
+                            self.show_second_window(win_id = 1)
+                        elif average_emotion.get('sad', 0) > self.threshold_sad:
+                            print('sad')
+                            self.show_second_window(win_id = 2)
+                        # 超えていないかつ存在するなら消す
+                        elif self.is_second_window:
+                            self.close_second_window()
+                            
                     else:
                          #Set neutral as default
                         dominant_emotion = 'neutral'
@@ -86,7 +108,47 @@ class FERApp:
                     self.last_update_time = time.time()
 
         self.root.after(100, self.update)
+        
+    def show_second_window(self, win_id):
+        if not self.is_second_window:
+             # 別のウィンドウを作成
+            self.second_window = tk.Toplevel(self.root)
+            self.second_window.title("Don't be nervous!")
+            self.label = tk.Label(self.root, text=f'Do not be so nervous!')
+            self.label.pack(pady=20)
+            
+            win_id = win_id
 
+            # 別のウィンドウに画像を表示
+            img_path = self.show_random_file(win_id)  # ここに別の画像のパスを設定
+            img = Image.open(img_path)
+            img = ImageTk.PhotoImage(img)
+            self.second_window_label = tk.Label(self.second_window, image=img)
+            self.second_window_label.image = img
+            self.second_window_label.pack()
+
+            # 別のウィンドウを閉じるためのボタン
+            close_button = tk.Button(self.second_window, text="Close", command=self.close_second_window)
+            close_button.pack()
+
+            # ウィンドウが表示されたことをフラグに設定
+            self.is_second_window = True
+
+    def close_second_window(self):
+        self.second_window.destroy()
+        # ウィンドウが閉じられたことをフラグに設定
+        self.is_second_window = False
+    
+    def show_random_file(self, win_id):
+        if win_id == 1:
+            directory = 'img/relax'
+        if win_id == 2:
+            directory = 'img/happiness'
+        file_list = os.listdir(directory)
+        selected_file = random.choice(file_list)
+        return os.path.join(directory, selected_file)
+        
+        
     def exit_app(self):
         self.root.destroy()
 
@@ -96,10 +158,7 @@ def main():
 
     def exit_app():
         root.destroy()
-
-    btn_exit = tk.Button(root, text="Exit", command=exit_app)
-    btn_exit.pack()
-
+        
     root.mainloop()
 
 if __name__ == "__main__":

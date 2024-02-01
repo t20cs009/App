@@ -31,9 +31,9 @@ class FERApp:
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
         self.last_update_time = time.time()
         
-        self.threshold_angry = 0.2  # この値を適切な閾値に設定
-        self.threshold_sad = 0.2
-        self.threshold_fear = 0.2
+        self.threshold_angry = 0.3  # この値を適切な閾値に設定
+        self.threshold_sad = 0.3
+        self.threshold_fear = 0.3
         self.second_window = None
         self.second_window_label = None
         self.is_second_window = False
@@ -82,9 +82,12 @@ class FERApp:
                         # angry converter
                         print(average_emotion['angry'])
                         # 閾値を超えていて，ウィンドウがないなら生成
-                        if average_emotion.get('angry', 0) > self.threshold_angry or average_emotion.get('sad', 0) > self.threshold_sad or average_emotion.get('fear', 0) > self.threshold_fear:
-                            print('show')
-                            self.show_second_window()
+                        if average_emotion.get('angry', 0) > self.threshold_angry:
+                            print('angry')
+                            self.show_second_window(win_id = 1)
+                        elif average_emotion.get('sad', 0) > self.threshold_sad:
+                            print('sad')
+                            self.show_second_window(win_id = 2)
                         # 超えていないかつ存在するなら消す
                         elif self.is_second_window:
                             self.close_second_window()
@@ -111,16 +114,18 @@ class FERApp:
 
         self.root.after(100, self.update)
         
-    def show_second_window(self):
+    def show_second_window(self, win_id):
         if not self.is_second_window:
              # 別のウィンドウを作成
             self.second_window = tk.Toplevel(self.root)
             self.second_window.title("Don't be nervous!")
             self.label = tk.Label(self.root, text=f'Do not be so nervous!')
             self.label.pack(pady=20)
+            
+            win_id = win_id
 
             # 別のウィンドウに画像を表示
-            img_path = self.show_random_file()  # ここに別の画像のパスを設定
+            img_path = self.show_random_file(win_id)  # ここに別の画像のパスを設定
             img = Image.open(img_path)
             img = ImageTk.PhotoImage(img)
             self.second_window_label = tk.Label(self.second_window, image=img)
@@ -139,8 +144,11 @@ class FERApp:
         # ウィンドウが閉じられたことをフラグに設定
         self.is_second_window = False
     
-    def show_random_file(self):
-        directory = 'img/posi'
+    def show_random_file(self, win_id):
+        if win_id == 1:
+            directory = 'img/relax'
+        if win_id == 2:
+            directory = 'img/happiness'
         file_list = os.listdir(directory)
         selected_file = random.choice(file_list)
         return os.path.join(directory, selected_file)
