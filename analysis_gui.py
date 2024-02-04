@@ -6,18 +6,66 @@ import time
 import os
 import random
 
+class Mirror:
+    def __init__(self, app, image_path):
+        self.app = app
+        self.root = tk.Toplevel(app.root)
+        self.root.title("Mirror Window")
+        
+        self.root.geometry("400x400+900+100")  # ウィンドウのサイズと位置を指定
+        
+        self.image_label = tk.Label(self.root)
+        self.image_label.pack()
+        
+        self.label_emotion = tk.Label(self.root, text="", font=("Arial", 18))
+        self.label_emotion.pack()
+
+        self.new_image_path = None 
+        
+        self.update()
+
+    def update(self):
+        # FERAppから感情を取得
+        emotion = self.app.get_emotion()
+
+        # 画像のパスを取得
+        new_image_path = self.app.get_image_path_for_emotion(emotion)
+
+        # 新しい画像のパスがセットされていれば画像を更新
+        img = Image.open(new_image_path)
+        img = ImageTk.PhotoImage(img)
+        self.image_label.config(image=img)
+        self.image_label.image = img  # Keep a reference to avoid garbage collection
+        
+        self.label_emotion.config(text=f"Dominant emotion: {emotion.capitalize()}")
+
+        # 一定時間ごとに再度updateメソッドを呼び出す
+        self.root.after(1000, self.update)
+
+    def close_window(self):
+        self.root.destroy()
+        self.app.second_window_closed()  # FERAppにセカンドウィンドウが閉じられたことを通知
+
+
 class FERApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(f'FER Analysis')
-        self.root.geometry("800x450")  # Set a uniform size
+        self.root.title("FER Analysis")
 
         self.video_source = 0  # Change this if needed for a different webcam
 
         self.fer = FER(mtcnn=True)
 
-        self.vid = cv2.VideoCapture(self.video_source, cv2.CAP_DSHOW)
+        self.vid = cv2.VideoCapture(self.video_source)
+        self.width='800'  # Set a uniform size
+        self.height='450'
 
+        self.canvas = tk.Canvas(root, width=self.width, height=self.height)
+        self.canvas.pack()
+
+        self.btn_quit = tk.Button(root, text="Quit", command=self.quit)
+        self.btn_quit.pack()
+        
         self.label_emotion = tk.Label(root, text="", font=("Arial", 18))
         self.label_emotion.pack()
 
@@ -26,6 +74,7 @@ class FERApp:
         
         self.alter_image_label = tk.Label(root)
         self.alter_image_label.pack()
+        
 
         self.emotion_history = []
         self.frames_since_last_update = 0  # 最後の更新からのフレーム数
@@ -37,8 +86,10 @@ class FERApp:
         self.second_window = None
         self.second_window_label = None
         self.is_second_window = False
-
-        # Dictionary to map emotions to image paths
+        
+        self.mirror = None
+        self.dominant_emotion = 'neutral'
+        
         self.emotion_images = {
             'happy': 'img/happy.png',  # Replace with your image path
             'sad': 'img/sad.png',  # Replace with your image path
@@ -46,20 +97,30 @@ class FERApp:
             'neutral': 'img/neutral.png',  # Replace with your image path
             'surprise': 'img/surprise.png',  # Replace with your image path
             'fear': 'img/fear.png',  # Replace with your image path
-            # Add other emotions and their respective image paths
         }
         
-        # Exit Button
-        self.btn_exit = tk.Button(root, text="Exit", command=self.exit_app)
-        self.btn_exit.pack()
+        # 先にミラー画面を設定
+        self.mirror = Mirror(self, self.get_image_path_for_emotion(self.dominant_emotion))
 
         self.update()
 
     def update(self):
         ret, frame = self.vid.read()
         if ret:
+            top, bottom, left, right = 0, 450, 220, 580
+            frame = frame[top:bottom, left:right]
+
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = self.fer.detect_emotions(frame)
+            
+            for face in result:
+                (x, y, w, h) = face['box']
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                emotion = face['emotions']
+                cv2.putText(frame, max(emotion, key=emotion.get), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+            self.photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)            
             
             if result:
                 for face in result:
@@ -77,43 +138,54 @@ class FERApp:
                          # 一番大きな平均値を持つ感情を取得
                         dominant_emotion = max(average_emotion, key=average_emotion.get)
                         
-                        # angry converter
-                        print(average_emotion)
                         # 閾値を超えていて，ウィンドウがないなら生成
                         if average_emotion.get('angry', 0) > self.threshold_angry:
-                            print('angry')
-                            self.show_second_window(win_id = 1)
-                        elif average_emotion.get('sad', 0) > self.threshold_sad:
-                            print('sad')
-                            self.show_second_window(win_id = 2)
+                            self.show_img(win_id = 1)
+                        elif average_emotion.get('sad', 0) > self.threshold_sad or average_emotion.get('disgust', 0) > self.threshold_sad:
+                            self.show_img(win_id = 2)
                         # 超えていないかつ存在するなら消す
                         elif self.is_second_window:
-                            self.close_second_window()
-                            print("hello")
+                            self.close_img()
                     else:
                          #Set neutral as default
                         dominant_emotion = 'neutral'
+                        
+                    self.dominant_emotion = dominant_emotion
+                    if not self.mirror:
+                        self.mirror = Mirror(self, self.get_image_path_for_emotion(self.dominant_emotion))
                 
                     # Update the label with the dominant emotion
                     self.label_emotion.config(text=f"Dominant emotion: {dominant_emotion.capitalize()}")
 
                     # Display an image based on the detected emotion
-                    if dominant_emotion in self.emotion_images:
-                        img_path = self.emotion_images[dominant_emotion]
-                        img = Image.open(img_path)
-                        img = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=img)
-                        self.image_label.place(x=50,y=100)
-                        self.image_label.image = img  # Keep a reference to avoid garbage collection
+                    # if dominant_emotion in self.emotion_images:
+                    #     img_path = self.emotion_images[dominant_emotion]
+                    #     img = Image.open(img_path)
+                    #     img = ImageTk.PhotoImage(img)
+                    #     self.image_label.config(image=img)
+                    #     self.image_label.place(x=50,y=100)
+                    #     self.image_label.image = img  # Keep a reference to avoid garbage collection
 
                     # リストをクリアして次のデータ収集の準備
                     self.emotion_history.clear()
                     self.frames_since_last_update = 0
                     self.last_update_time = time.time()
+        if self.mirror:
+            self.mirror.update()
 
         self.root.after(100, self.update)
         
-    def show_second_window(self, win_id):
+    def get_emotion(self):
+        return self.dominant_emotion
+
+    def get_image_path_for_emotion(self, emotion):
+        # 感情に対応する画像のパスを取得するメソッド
+        return self.emotion_images.get(emotion, 'img/neutral.png')  # デフォルトの画像へのパスを設定
+
+    def second_window_closed(self):
+        self.second_window = None  # セカンドウィンドウの変数をリセット
+        
+    def show_img(self, win_id):
         if not self.is_second_window:
             win_id = win_id
             alter_img_path = self.show_random_file(win_id)
@@ -124,22 +196,23 @@ class FERApp:
             resized_img = original_img.resize(target_size)
 
             alter_img = ImageTk.PhotoImage(resized_img)
+            self.alter_image_label.config(text=f"Do not be so nervous!")
 
             # angryの閾値を超えているかどうかを確認
             if win_id == 1:
                 self.alter_image_label = tk.Label(self.root)
-                self.alter_image_label.config(image=alter_img)
-                self.alter_image_label.place(x=300, y=80)
+                self.alter_image_label.configure(image=alter_img)
+                self.alter_image_label.place(x=380, y=80)
                 self.alter_image_label.image = alter_img
                 self.is_second_window = True
             elif win_id == 2:
                 self.alter_image_label = tk.Label(self.root)
-                self.alter_image_label.config(image=alter_img)
-                self.alter_image_label.place(x=300, y=80)
+                self.alter_image_label.configure(image=alter_img)
+                self.alter_image_label.place(x=380, y=80)
                 self.alter_image_label.image = alter_img
                 self.is_second_window = True
-
-    def close_second_window(self):
+                
+    def close_img(self):
         if self.alter_image_label:
             self.alter_image_label.destroy()
         self.alter_image_label = None
@@ -153,15 +226,15 @@ class FERApp:
         file_list = os.listdir(directory)
         selected_file = random.choice(file_list)
         return os.path.join(directory, selected_file)
-        
-        
-    def exit_app(self):
+
+    def quit(self):
+        self.vid.release()
         self.root.destroy()
 
 def main():
     root = tk.Tk()
-    app = FERApp(root)
-
+    app1 = FERApp(root)
+    
     def exit_app():
         root.destroy()
         
