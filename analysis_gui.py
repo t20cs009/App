@@ -12,7 +12,7 @@ class Mirror:
         self.root = tk.Toplevel(app.root)
         self.root.title("Mirror Window")
         
-        self.root.geometry("400x400+900+100")  # ウィンドウのサイズと位置を指定
+        self.root.geometry("400x300+900+100")  # ウィンドウのサイズと位置を指定
         
         self.image_label = tk.Label(self.root)
         self.image_label.pack()
@@ -36,8 +36,6 @@ class Mirror:
         img = ImageTk.PhotoImage(img)
         self.image_label.config(image=img)
         self.image_label.image = img  # Keep a reference to avoid garbage collection
-        
-        self.label_emotion.config(text=f"Dominant emotion: {emotion.capitalize()}")
 
         # 一定時間ごとに再度updateメソッドを呼び出す
         self.root.after(1000, self.update)
@@ -90,13 +88,16 @@ class FERApp:
         self.mirror = None
         self.dominant_emotion = 'neutral'
         
+        self.showed = 0
+        
         self.emotion_images = {
             'happy': 'img/happy.png',  # Replace with your image path
             'sad': 'img/sad.png',  # Replace with your image path
-            'angry': 'img/angry.png',  # Replace with your image path
+            'angry': 'img/angry_little.png',  # Replace with your image path
             'neutral': 'img/neutral.png',  # Replace with your image path
             'surprise': 'img/surprise.png',  # Replace with your image path
             'fear': 'img/fear.png',  # Replace with your image path
+            'disgust': 'img/disgust.png',
         }
         
         # 先にミラー画面を設定
@@ -139,10 +140,11 @@ class FERApp:
                         dominant_emotion = max(average_emotion, key=average_emotion.get)
                         
                         # 閾値を超えていて，ウィンドウがないなら生成
-                        if average_emotion.get('angry', 0) > self.threshold_angry:
-                            self.show_img(win_id = 1)
-                        elif average_emotion.get('sad', 0) > self.threshold_sad or average_emotion.get('disgust', 0) > self.threshold_sad:
-                            self.show_img(win_id = 2)
+                        if average_emotion.get('angry', 0) > self.threshold_angry or average_emotion.get('sad', 0) > self.threshold_sad or average_emotion.get('disgust', 0) > self.threshold_sad:
+                            if average_emotion.get('angry', 0) > average_emotion.get('sad', 0) or average_emotion.get('angry', 0) > average_emotion.get('disgust', 0):
+                                self.show_img(win_id = 1) 
+                            else:
+                                self.show_img(win_id = 2)
                         # 超えていないかつ存在するなら消す
                         elif self.is_second_window:
                             self.close_img()
@@ -156,15 +158,6 @@ class FERApp:
                 
                     # Update the label with the dominant emotion
                     self.label_emotion.config(text=f"Dominant emotion: {dominant_emotion.capitalize()}")
-
-                    # Display an image based on the detected emotion
-                    # if dominant_emotion in self.emotion_images:
-                    #     img_path = self.emotion_images[dominant_emotion]
-                    #     img = Image.open(img_path)
-                    #     img = ImageTk.PhotoImage(img)
-                    #     self.image_label.config(image=img)
-                    #     self.image_label.place(x=50,y=100)
-                    #     self.image_label.image = img  # Keep a reference to avoid garbage collection
 
                     # リストをクリアして次のデータ収集の準備
                     self.emotion_history.clear()
@@ -187,6 +180,7 @@ class FERApp:
         
     def show_img(self, win_id):
         if not self.is_second_window:
+            self.showed += 1
             win_id = win_id
             alter_img_path = self.show_random_file(win_id)
             original_img = Image.open(alter_img_path)
@@ -196,8 +190,8 @@ class FERApp:
             resized_img = original_img.resize(target_size)
 
             alter_img = ImageTk.PhotoImage(resized_img)
-            self.alter_image_label.config(text=f"Do not be so nervous!")
-
+            self.alter_image_label = tk.Label(self.root)
+            
             # angryの閾値を超えているかどうかを確認
             if win_id == 1:
                 self.alter_image_label = tk.Label(self.root)
@@ -228,6 +222,7 @@ class FERApp:
         return os.path.join(directory, selected_file)
 
     def quit(self):
+        print(self.showed)
         self.vid.release()
         self.root.destroy()
 
